@@ -1,73 +1,137 @@
-const drawChart = () => {
+class Chart {
 
-    let data = [{Date: new Date('2015-05-05'), score: 5}
-        , {Date: new Date('2015-06-05'), score: 10}
-        , {Date: new Date('2015-07-05'), score: 30}
-        , {Date: new Date('2015-08-05'), score: 25}
-    ]
+    constructor() {
+        this.draw();
+    }
 
+    draw() {
+        // define width, height and margin
+        this.margin = {top: 20, right: 20, bottom: 20, left: 60};
+        this.padding = {top: 60, right: 60, bottom: 60, left: 60};
+        this.outerWidth = 960;
+        this.outerHeight = 500;
+        this.innerWidth = outerWidth - this.margin.left - this.margin.right;
+        this.innerHeight = outerHeight - this.margin.top - this.margin.bottom;
+        this.width = innerWidth - this.padding.left - this.padding.right;
+        this.height = innerHeight - this.padding.top - this.padding.bottom;
 
-    const margin = {top: 20, right: 20, bottom: 20, left: 60},
-        padding = {top: 60, right: 60, bottom: 60, left: 60},
-        outerWidth = 960,
-        outerHeight = 500,
-        innerWidth = outerWidth - margin.left - margin.right,
-        innerHeight = outerHeight - margin.top - margin.bottom,
-        width = innerWidth - padding.left - padding.right,
-        height = innerHeight - padding.top - padding.bottom;
-
-    const svg = d3.select("main").append("svg")
-        .attr("width", outerWidth)
-        .attr("height", outerWidth)
-        .append("g")
-        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-
-    const xScale = d3.scaleTime().range([0, width]);
-    const yScale = d3.scaleLinear().range([height, 0]);
-
-    xScale.domain(d3.extent(data.map((d) => {return d.Date})));
-    yScale.domain(d3.extent(data.map((d) => {return d.score})));
+        // set up parent element and SVG
+        this.svg = d3.select("main").append("svg")
+            .attr("width", this.outerWidth)
+            .attr("height", this.outerWidth)
+            .append("g")
+            .attr("transform", "translate(" + this.margin.left + "," + this.margin.top + ")");
 
 
-    const yAxis = d3.axisLeft().scale(yScale);
-    const xAxis = d3.axisBottom().scale(xScale);
 
-    svg.append("g")
-        .attr("class", "axis")
-        .attr("transform", "translate(0," + height + ")")
-        .call(xAxis);
+        this.xScale = d3.scaleTime().range([0, this.width]);
+        this.yScale = d3.scaleLinear().range([this.height, 0]);
 
-    svg.append("g")
-        .attr("class", "axis")
-        .call(yAxis);
+        this.yaxis = d3.axisLeft().scale(this.yScale);
+        this.xaxis = d3.axisBottom().scale(this.xScale);
 
-    const line = d3.line()
-        .x((d) => {return xScale(d.Date)})
-        .y((d) => {return yScale(d.score)})
-    ;
+        this.svg.append("g")
+            .attr("class", "yaxis");
 
-    svg.append("path")
-        .datum(data)
-        .attr("fill", "none")
-        .attr("class", "line")
-        .attr("stroke", "red")
-        .attr("stroke-width", 3)
-        .attr("d", line)
-    ;
+        this.svg.append("g")
+            .attr("class", "xaxis")
+            .attr("transform", "translate(0," + this.height + ")");
 
-    svg.selectAll('.dot')
-        .data(data)
-        .enter()
-        .append('circle')
-        .attr('class', 'dot')
-        .attr('cx', function(d) {return xScale(d.Date)})
-        .attr('cy', function (d) {return yScale(d.score)})
-        .attr('fill', 'red')
-        .attr('r', 5)
-        .on('click' , (e,d) => {
-            console.log('d: ', d.Date);
-            console.log('d: ', d.score);
-        })
-    ;
+
+    }
+
+
+    async updateData(weeks) {
+
+        this.data = await d3.json('https://api.covid19api.com/total/country/Kazakhstan').then(function (data) {
+            data.forEach((d) => {
+                d.Date = new Date(d.Date);
+            });
+            let periodDate = new Date();
+            periodDate.setDate(periodDate.getDate() - weeks * 7);
+
+            return data.filter((d, i) => {
+                if (d.Date > periodDate) {
+                    return d;
+                }
+            })
+
+        });
+    }
+
+
+    addLine(param) {
+
+        this.xScale.domain(d3.extent(this.data.map((d) => {
+            return d.Date
+        })));
+        this.yScale.domain(d3.extent(this.data.map((d) => {
+            return d.Recovered
+        })));
+
+        this.yaxis = d3.axisLeft().scale(this.yScale);
+        this.xaxis = d3.axisBottom().scale(this.xScale);
+
+
+        this.svg.selectAll(".yaxis").transition()
+            .duration(3000)
+            .call(this.yaxis);
+
+        this.svg.selectAll(".xaxis").transition()
+            .duration(3000)
+            .call(this.xaxis);
+
+        let line = d3.line()
+            .x((d) => {
+                return this.xScale(d.Date)
+            })
+            .y((d) => {
+                return this.yScale(d.Recovered)
+            });
+
+        if (param === 'new') {
+            this.svg.append("path")
+                .datum(this.data)
+                .attr("fill", "none")
+                .attr("class", "line")
+                .attr("stroke", "red")
+                .attr("stroke-width", 3)
+                .attr("d", line);
+        } else {
+            d3.select(".line").transition()   // change the line
+                .duration(750)
+                .attr("d", line(this.data));
+        }
+
+        this.svg.selectAll("circle")
+            .transition()
+            .duration(750)
+            .remove();
+
+        this.svg.selectAll('.dot')
+            .data(this.data)
+            .enter()
+            .append('circle')
+            // .transition()   // change the line
+            // .duration(750)
+            .attr('class', 'dot')
+            .attr('cx', (d) => {return this.xScale(d.Date)})
+            .attr('cy',  (d) => {return this.yScale(d.Recovered)})
+            .attr('fill', 'red')
+            .attr('r', 5)
+            .on('mouseover' , (e, d) => {
+                d3.select(e.currentTarget)
+                    .transition()
+                    .duration(500)
+                    .attr("fill", "maroon").attr("r", 8);
+            })
+        ;
+
+
+
+
+
+    }
+
+
 }

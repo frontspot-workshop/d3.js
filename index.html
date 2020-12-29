@@ -4,13 +4,40 @@
     <meta charset="UTF-8">
     <title>Start D3.js</title>
     <script src="https://d3js.org/d3.v6.min.js"></script>
-    <script src="src/drawChart.js"></script>
-
+    <script src="src/DrawChart.js"></script>
 </head>
 <body>
 <main>
+    <div class="control">
+        <button class="three_weeks">3 weeks back</button>
+        <button class="two_weeks">2 weeks back</button>
+    </div>
+
+    <div class="chart">
+
+    </div>
     <script>
-        drawChart()
+
+        const chart = new Chart();
+        chart.updateData(1).then((res, req) => {
+            console.log('works2')
+            chart.addLine('new');
+        });
+        d3.selectAll('.two_weeks').on('click', () => {
+            chart.updateData(2).then((res, req) => {
+                    console.log('works3')
+                    chart.addLine('update');
+            });
+        });
+
+        d3.select('.three_weeks').on('click', () => {
+            chart.updateData(3).then((res, req) => {
+                    console.log('works4')
+                    chart.addLine('update');
+            });
+        });
+
+
     </script>
 </main>
 </body>
